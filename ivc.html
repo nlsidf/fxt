@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能语音合成系统 - 一键音色克隆（带流式进度）</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --warning-gradient: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+            --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+            min-height: 100vh;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .main-header {
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .step-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .step-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .step-card.active {
+            border-color: #667eea;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .step-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-gradient);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .step-subtitle {
+            color: #666;
+            font-size: 0.95em;
+            margin-top: 5px;
+        }
+
+        .upload-box {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .upload-box:hover, .upload-box.dragover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .audio-preview {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .audio-preview audio {
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .control-slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .param-value {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.2em;
+            min-width: 40px;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .status-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .status-badge .badge-icon {
+            margin-right: 8px;
+            font-size: 1.1em;
+        }
+
+        .status-loading {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffc107;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #28a745;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #dc3545;
+        }
+
+        .action-button {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 1.2em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .action-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-generate {
+            background: var(--primary-gradient);
+            color: white;
+            font-size: 1.3em;
+            padding: 18px 50px;
+        }
+
+        .btn-generate:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-download {
+            background: var(--success-gradient);
+            color: white;
+        }
+
+        .btn-download:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        }
+
+        .progress-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .progress-bar-container {
+            height: 30px;
+            border-radius: 15px;
+            background: #e9ecef;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            border-left: 5px solid #28a745;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-header {
+            color: #28a745;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .workflow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 30px 0;
+            position: relative;
+        }
+
+        .workflow-step {
+            text-align: center;
+            flex: 1;
+            position: relative;
+            z-index: 2;
+        }
+
+        .workflow-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            color: #667eea;
+            margin: 0 auto 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 3px solid #f0f0f0;
+        }
+
+        .workflow-step.active .workflow-icon {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .workflow-step.completed .workflow-icon {
+            background: #28a745;
+            color: white;
+            border-color: #28a745;
+        }
+
+        .workflow-arrow {
+            flex: 1;
+            text-align: center;
+            color: #667eea;
+            font-size: 1.5em;
+            position: relative;
+            z-index: 1;
+        }
+
+        .workflow-line {
+            position: absolute;
+            top: 35px;
+            left: 85px;
+            right: 85px;
+            height: 4px;
+            background: #f0f0f0;
+            z-index: 1;
+        }
+
+        .streaming-info {
+            background: #e8f4f8;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #4facfe;
+            display: none;
+        }
+
+        .streaming-info h6 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .segment-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding-right: 5px;
+        }
+
+        .segment-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .segment-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .segment-list::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+
+        .segment-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #dee2e6;
+            transition: all 0.3s ease;
+        }
+
+        .segment-item:hover {
+            transform: translateX(3px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .segment-item.processed {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+
+        .segment-item.processing {
+            border-left-color: #ffc107;
+            background: #fff8e1;
+        }
+
+        .segment-item.pending {
+            border-left-color: #dee2e6;
+            background: #f8f9fa;
+        }
+
+        .segment-item.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .segment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .segment-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .segment-badge {
+            font-size: 0.75em;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .segment-details {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .service-badge {
+            background: #e9ecef;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.85em;
+            color: #666;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .service-online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .service-offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f4f8;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .example-btn {
+            font-size: 0.85rem;
+            padding: 5px 10px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .settings-panel {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+        }
+
+        .toggle-advanced {
+            color: #667eea;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .advanced-options {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #dee2e6;
+        }
+
+        .quick-settings {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .quick-setting-item {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .status-message {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.05);
+        }
+
+        .processing-steps {
+            margin-top: 20px;
+        }
+
+        .processing-step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .processing-step.completed {
+            background: #d4edda;
+        }
+
+        .processing-step.active {
+            background: #fff3cd;
+        }
+
+        .step-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 0.9em;
+        }
+
+        .processing-step.completed .step-check {
+            background: #28a745;
+            color: white;
+        }
+
+        .processing-step.active .step-check {
+            background: #ffc107;
+            color: white;
+        }
+
+        .one-click-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .file-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .file-status.ready {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+
+        .file-status.pending {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .file-status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+        }
+
+        .file-status.ready .file-status-icon {
+            background: #28a745;
+            color: white;
+        }
+
+        .file-status.pending .file-status-icon {
+            background: #ffc107;
+            color: white;
+        }
+
+        .streaming-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 主标题 -->
+        <div class="main-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="display-5 fw-bold mb-3">🎤 智能语音合成系统</h1>
+                    <p class="lead mb-0">一键生成克隆语音 - 实时显示流式处理进度</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="service-badge service-online mb-2" id="tts-service-status">
+                        <i class="bi bi-check-circle-fill"></i>
+                        TTS服务在线
+                    </div>
+                    <div class="service-badge service-online" id="isv-service-status">
+                        <i class="bi bi-check-circle-fill"></i>
+                        音色克隆服务在线
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 工作流程图示 -->
+        <div class="workflow-diagram">
+            <div class="workflow-line"></div>
+            <div class="workflow-step active" id="step1-wf">
+                <div class="workflow-icon">
+                    <i class="bi bi-chat-square-text"></i>
+                </div>
+                <h6 class="mb-0">输入文本</h6>
+            </div>
+            <div class="workflow-arrow">
+                <i class="bi bi-arrow-right"></i>
+            </div>
+            <div class="workflow-step" id="step2-wf">
+                <div class="workflow-icon">
+                    <i class="bi bi-mic"></i>
+                </div>
+                <h6 class="mb-0">上传音色</h6>
+            </div>
+            <div class="workflow-arrow">
+                <i class="bi bi-arrow-right"></i>
+            </div>
+            <div class="workflow-step" id="step3-wf">
+                <div class="workflow-icon">
+                    <i class="bi bi-gear"></i>
+                </div>
+                <h6 class="mb-0">设置参数</h6>
+            </div>
+            <div class="workflow-arrow">
+                <i class="bi bi-arrow-right"></i>
+            </div>
+            <div class="workflow-step" id="step4-wf">
+                <div class="workflow-icon">
+                    <i class="bi bi-magic"></i>
+                </div>
+                <h6 class="mb-0">生成克隆</h6>
+            </div>
+            <div class="workflow-arrow">
+                <i class="bi bi-arrow-right"></i>
+            </div>
+            <div class="workflow-step" id="step5-wf">
+                <div class="workflow-icon">
+                    <i class="bi bi-file-earmark-music"></i>
+                </div>
+                <h6 class="mb-0">获得结果</h6>
+            </div>
+        </div>
+
+        <!-- 主工作区 -->
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- 文本输入区 -->
+                <div class="step-card active">
+                    <div class="step-header">
+                        <div class="step-icon">
+                            <i class="bi bi-chat-square-text"></i>
+                        </div>
+                        <div>
+                            <h3 class="step-title">1. 输入要合成的文本</h3>
+                            <p class="step-subtitle">输入您想要转换为语音的文本内容</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <textarea class="form-control" id="tts-text" rows="5" placeholder="请输入要转换为语音的文本..."></textarea>
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-primary example-btn" data-text="欢迎使用智能语音合成系统，这是一键生成克隆语音的完整解决方案。系统支持流式处理长音频，实时显示每个片段的处理进度。">
+                                <i class="bi bi-card-text"></i> 示例1
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary example-btn" data-text="Hello, this is an English example text for testing the voice cloning system with one-click generation. The system supports streaming processing for long audio and shows real-time progress for each segment.">
+                                <i class="bi bi-card-text"></i> 示例2
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary example-btn" data-text="人工智能技术正在快速发展，语音合成和音色克隆技术让我们能够创造更加自然和个性化的语音体验。这项技术可以应用于有声读物、虚拟助手、视频配音等多个领域，为用户提供更加丰富的听觉体验。通过流式处理技术，我们可以处理任意长度的音频文件，同时实时显示处理进度，让用户清晰了解当前状态。">
+                                <i class="bi bi-card-text"></i> 长文本示例
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 音色上传区 -->
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-icon">
+                            <i class="bi bi-mic"></i>
+                        </div>
+                        <div>
+                            <h3 class="step-title">2. 上传目标音色</h3>
+                            <p class="step-subtitle">上传您想要模仿的声音（建议2-10秒清晰音频）</p>
+                        </div>
+                    </div>
+
+                    <div class="upload-box" id="target-drop-zone">
+                        <div class="upload-icon">
+                            <i class="bi bi-upload"></i>
+                        </div>
+                        <h5>点击上传或拖拽音频文件</h5>
+                        <p class="text-muted mb-0">支持 WAV, MP3, FLAC, OGG 格式，建议文件小于10MB</p>
+                        <input type="file" id="target-audio-file" accept="audio/*" style="display: none;">
+                    </div>
+
+                    <div id="target-audio-info" style="display: none;">
+                        <div class="audio-preview">
+                            <h6 class="mb-2">目标音色预览:</h6>
+                            <audio id="target-audio-player" controls></audio>
+                            <div class="file-info">
+                                <p class="mb-1"><strong>文件:</strong> <span id="target-file-name"></span></p>
+                                <p class="mb-0"><strong>大小:</strong> <span id="target-file-size"></span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="file-status pending" id="file-status-target">
+                        <div class="file-status-icon">
+                            <i class="bi bi-hourglass"></i>
+                        </div>
+                        <div>
+                            <strong>目标音色</strong>
+                            <p class="mb-0 text-muted">等待上传音频文件</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 参数设置区 -->
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-icon">
+                            <i class="bi bi-gear"></i>
+                        </div>
+                        <div>
+                            <h3 class="step-title">3. 设置合成参数</h3>
+                            <p class="step-subtitle">调整语音参数以获得最佳效果</p>
+                        </div>
+                    </div>
+
+                    <div class="quick-settings">
+                        <div class="quick-setting-item">
+                            <label class="form-label fw-bold">语音模型</label>
+                            <select class="form-select" id="tts-model">
+                                <option value="zh_CN-huayan-medium">中文-花样</option>
+                                <option value="en_US-lessac-low">英语-Lessac</option>
+                            </select>
+                        </div>
+                        <div class="quick-setting-item">
+                            <label class="form-label fw-bold">语速 <span class="param-value" id="tts-speed-value">1.0</span></label>
+                            <input type="range" class="control-slider" id="tts-speed" min="0.5" max="2.0" step="0.1" value="1.0">
+                        </div>
+                        <div class="quick-setting-item">
+                            <label class="form-label fw-bold">音色强度 <span class="param-value" id="tau-value">0.3</span></label>
+                            <input type="range" class="control-slider" id="tau-slider" min="0" max="1" step="0.1" value="0.3">
+                        </div>
+                    </div>
+
+                    <div class="settings-panel">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enable-streaming" checked>
+                            <label class="form-check-label" for="enable-streaming">
+                                <strong>智能流式处理</strong> (自动处理长音频)
+                            </label>
+                        </div>
+                        <div class="advanced-options" id="advanced-options" style="display: none;">
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">片段时长(秒)</label>
+                                    <input type="number" class="form-control" id="segment-duration" min="5" max="30" value="10">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">并发处理数</label>
+                                    <select class="form-select" id="concurrent-count">
+                                        <option value="2">2</option>
+                                        <option value="3" selected>3</option>
+                                        <option value="5">5</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-2">
+                            <span class="toggle-advanced" id="toggle-advanced">
+                                <i class="bi bi-gear"></i> 高级选项
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <small>
+                            <i class="bi bi-info-circle"></i>
+                            <strong>参数说明:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li><strong>音色强度:</strong> 控制目标音色的影响程度（0.3-0.5为推荐值）</li>
+                                <li><strong>智能流式处理:</strong> 长文本自动切分处理，实时显示处理进度</li>
+                                <li><strong>并发处理:</strong> 同时处理多个音频片段，提高处理速度</li>
+                            </ul>
+                        </small>
+                    </div>
+                </div>
+
+                <!-- 一键生成区 -->
+                <div class="one-click-section">
+                    <button class="action-button btn-generate" id="generate-all-btn" disabled>
+                        <i class="bi bi-magic"></i> 一键生成克隆语音
+                    </button>
+                    <p class="text-muted mt-2">点击按钮，系统将自动完成：TTS生成 → 音色克隆 → 输出结果</p>
+                </div>
+
+                <!-- 处理进度 -->
+                <div class="progress-container" id="progress-container" style="display: none;">
+                    <h5 class="mb-3"><i class="bi bi-lightning-charge"></i> 整体处理进度</h5>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar" style="width: 0%">
+                            0%
+                        </div>
+                    </div>
+                    <div class="text-center mt-2" id="progress-info">
+                        准备开始处理...
+                    </div>
+
+                    <div class="processing-steps mt-4">
+                        <div class="processing-step" id="step-tts">
+                            <div class="step-check">1</div>
+                            <div>
+                                <strong>生成TTS语音</strong>
+                                <p class="mb-0 text-muted" id="step-tts-detail">将文本转换为语音</p>
+                            </div>
+                        </div>
+                        <div class="processing-step" id="step-clone">
+                            <div class="step-check">2</div>
+                            <div>
+                                <strong>音色克隆处理</strong>
+                                <p class="mb-0 text-muted" id="step-clone-detail">将TTS语音克隆为目标音色</p>
+                            </div>
+                        </div>
+                        <div class="processing-step" id="step-merge">
+                            <div class="step-check">3</div>
+                            <div>
+                                <strong>合并与优化</strong>
+                                <p class="mb-0 text-muted" id="step-merge-detail">处理并优化最终音频</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 流式处理信息 -->
+                <div class="streaming-info" id="streaming-info">
+                    <h6><i class="bi bi-list-ul"></i> 流式处理进度</h6>
+                    <div class="streaming-stats" id="streaming-stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="total-segments">0</div>
+                            <div class="stat-label">总片段数</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="processed-segments">0</div>
+                            <div class="stat-label">已处理</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="processing-speed">0/s</div>
+                            <div class="stat-label">处理速度</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="success-rate">0%</div>
+                            <div class="stat-label">成功率</div>
+                        </div>
+                    </div>
+                    <div class="segment-list" id="segment-list">
+                        <!-- 片段列表将在这里动态生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- 状态面板 -->
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white border-0 pb-0">
+                        <h5 class="mb-0"><i class="bi bi-speedometer2"></i> 系统状态</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="status-container">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> 准备开始语音合成...
+                            </div>
+                        </div>
+
+                        <!-- 文件状态 -->
+                        <div class="mt-3">
+                            <h6><i class="bi bi-files"></i> 文件准备状态</h6>
+                            <div class="file-status pending" id="status-text">
+                                <div class="file-status-icon">
+                                    <i class="bi bi-hourglass"></i>
+                                </div>
+                                <div>
+                                    <strong>文本内容</strong>
+                                    <p class="mb-0 text-muted">等待输入</p>
+                                </div>
+                            </div>
+                            <div class="file-status pending" id="status-voice">
+                                <div class="file-status-icon">
+                                    <i class="bi bi-hourglass"></i>
+                                </div>
+                                <div>
+                                    <strong>目标音色</strong>
+                                    <p class="mb-0 text-muted">等待上传</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 实时统计 -->
+                        <div class="mt-3" id="real-time-stats" style="display: none;">
+                            <h6><i class="bi bi-graph-up"></i> 实时统计</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="bi bi-clock text-primary"></i> 已用时间: <span id="elapsed-time">0秒</span></li>
+                                <li><i class="bi bi-cpu text-primary"></i> 总体进度: <span id="overall-progress">0%</span></li>
+                                <li><i class="bi bi-database text-primary"></i> 预估剩余: <span id="estimated-remaining">-</span></li>
+                            </ul>
+                        </div>
+
+                        <!-- 结果 -->
+                        <div id="result-container" style="display: none;">
+                            <div class="result-card">
+                                <div class="result-header">
+                                    <i class="bi bi-check-circle-fill"></i>
+                                    <h5 class="mb-0">🎉 处理完成!</h5>
+                                </div>
+                                <div class="audio-preview">
+                                    <h6 class="mb-2">最终克隆语音:</h6>
+                                    <audio id="final-result-audio" controls></audio>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="action-button btn-download w-100" id="final-download-btn">
+                                        <i class="bi bi-download"></i> 下载克隆语音 (WAV格式)
+                                    </button>
+                                </div>
+                                <div class="mt-3">
+                                    <h6><i class="bi bi-graph-up"></i> 处理统计:</h6>
+                                    <ul class="list-unstyled" id="stats-list">
+                                        <li><i class="bi bi-clock text-primary"></i> TTS生成: <span class="text-success" id="tts-time">-</span></li>
+                                        <li><i class="bi bi-clock text-primary"></i> 音色克隆: <span class="text-success" id="clone-time">-</span></li>
+                                        <li><i class="bi bi-pie-chart text-primary"></i> 片段数: <span class="text-success" id="segment-count">-</span></li>
+                                        <li><i class="bi bi-clock text-primary"></i> 总耗时: <span class="text-success" id="total-time">-</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 历史记录 -->
+                        <div class="mt-4">
+                            <h6><i class="bi bi-clock-history"></i> 操作记录</h6>
+                            <div class="list-group list-group-flush" id="history-list">
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span>系统初始化完成</span>
+                                    <small class="text-muted">刚刚</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 服务地址
+        const TTS_SERVER = 'https://lglfr-tts.hf.space';
+        const ISV_SERVER = 'https://lglfr-ivc.hf.space';
+
+        // 状态变量
+        let ttsAudioBlob = null;
+        let targetAudioBlob = null;
+        let clonedAudioBase64 = null;
+        let audioContext = null;
+        let processingStartTime = null;
+        let ttsStartTime = 0;
+        let cloneStartTime = 0;
+        let totalProcessingTime = 0;
+        let streamingStats = {
+            totalSegments: 0,
+            processedSegments: 0,
+            successfulSegments: 0,
+            failedSegments: 0,
+            startTime: null,
+            segments: []
+        };
+
+        // DOM元素
+        const elements = {
+            // 服务状态
+            ttsServiceStatus: document.getElementById('tts-service-status'),
+            isvServiceStatus: document.getElementById('isv-service-status'),
+            
+            // 工作流图示
+            step1Wf: document.getElementById('step1-wf'),
+            step2Wf: document.getElementById('step2-wf'),
+            step3Wf: document.getElementById('step3-wf'),
+            step4Wf: document.getElementById('step4-wf'),
+            step5Wf: document.getElementById('step5-wf'),
+            
+            // 文本输入
+            ttsText: document.getElementById('tts-text'),
+            
+            // 参数设置
+            ttsModel: document.getElementById('tts-model'),
+            ttsSpeed: document.getElementById('tts-speed'),
+            ttsSpeedValue: document.getElementById('tts-speed-value'),
+            tauSlider: document.getElementById('tau-slider'),
+            tauValue: document.getElementById('tau-value'),
+            
+            // 流式设置
+            enableStreaming: document.getElementById('enable-streaming'),
+            segmentDuration: document.getElementById('segment-duration'),
+            concurrentCount: document.getElementById('concurrent-count'),
+            toggleAdvanced: document.getElementById('toggle-advanced'),
+            advancedOptions: document.getElementById('advanced-options'),
+            
+            // 文件上传
+            targetDropZone: document.getElementById('target-drop-zone'),
+            targetAudioFile: document.getElementById('target-audio-file'),
+            targetAudioInfo: document.getElementById('target-audio-info'),
+            targetAudioPlayer: document.getElementById('target-audio-player'),
+            targetFileName: document.getElementById('target-file-name'),
+            targetFileSize: document.getElementById('target-file-size'),
+            fileStatusTarget: document.getElementById('file-status-target'),
+            
+            // 状态显示
+            statusText: document.getElementById('status-text'),
+            statusVoice: document.getElementById('status-voice'),
+            
+            // 生成按钮
+            generateAllBtn: document.getElementById('generate-all-btn'),
+            
+            // 进度显示
+            progressContainer: document.getElementById('progress-container'),
+            progressBar: document.getElementById('progress-bar'),
+            progressInfo: document.getElementById('progress-info'),
+            
+            // 处理步骤
+            stepTts: document.getElementById('step-tts'),
+            stepClone: document.getElementById('step-clone'),
+            stepMerge: document.getElementById('step-merge'),
+            stepTtsDetail: document.getElementById('step-tts-detail'),
+            stepCloneDetail: document.getElementById('step-clone-detail'),
+            stepMergeDetail: document.getElementById('step-merge-detail'),
+            
+            // 流式处理信息
+            streamingInfo: document.getElementById('streaming-info'),
+            totalSegments: document.getElementById('total-segments'),
+            processedSegments: document.getElementById('processed-segments'),
+            processingSpeed: document.getElementById('processing-speed'),
+            successRate: document.getElementById('success-rate'),
+            segmentList: document.getElementById('segment-list'),
+            
+            // 状态面板
+            statusContainer: document.getElementById('status-container'),
+            resultContainer: document.getElementById('result-container'),
+            finalResultAudio: document.getElementById('final-result-audio'),
+            finalDownloadBtn: document.getElementById('final-download-btn'),
+            ttsTime: document.getElementById('tts-time'),
+            cloneTime: document.getElementById('clone-time'),
+            segmentCount: document.getElementById('segment-count'),
+            totalTime: document.getElementById('total-time'),
+            realTimeStats: document.getElementById('real-time-stats'),
+            elapsedTime: document.getElementById('elapsed-time'),
+            overallProgress: document.getElementById('overall-progress'),
+            estimatedRemaining: document.getElementById('estimated-remaining'),
+            historyList: document.getElementById('history-list')
+        };
+
+        // 工具函数：格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 工具函数：文件转base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 工具函数：Blob转base64
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // 工具函数：显示状态消息
+        function showStatus(message, type = 'info') {
+            const alertClass = {
+                'info': 'alert-info',
+                'success': 'alert-success',
+                'warning': 'alert-warning',
+                'error': 'alert-danger',
+                'loading': 'alert-warning'
+            }[type] || 'alert-info';
+
+            const icon = {
+                'info': 'bi-info-circle',
+                'success': 'bi-check-circle',
+                'warning': 'bi-exclamation-triangle',
+                'error': 'bi-x-circle',
+                'loading': 'bi-hourglass-split'
+            }[type] || 'bi-info-circle';
+
+            elements.statusContainer.innerHTML = `
+                <div class="alert ${alertClass} d-flex align-items-center">
+                    <i class="bi ${icon} me-2 fs-5"></i>
+                    <div>${message}</div>
+                </div>
+            `;
+            
+            // 添加到历史记录
+            addToHistory(message);
+        }
+
+        // 工具函数：添加到历史记录
+        function addToHistory(message) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('zh-CN', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            const historyItem = document.createElement('div');
+            historyItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+            historyItem.innerHTML = `
+                <span>${message}</span>
+                <small class="text-muted">${timeString}</small>
+            `;
+            
+            elements.historyList.insertBefore(historyItem, elements.historyList.firstChild);
+            
+            // 限制历史记录数量
+            const items = elements.historyList.querySelectorAll('.list-group-item');
+            if (items.length > 10) {
+                elements.historyList.removeChild(items[items.length - 1]);
+            }
+        }
+
+        // 工具函数：更新进度条
+        function updateProgress(percent, message) {
+            elements.progressBar.style.width = `${percent}%`;
+            elements.progressBar.textContent = `${Math.round(percent)}%`;
+            elements.progressInfo.textContent = message;
+            elements.overallProgress.textContent = `${Math.round(percent)}%`;
+        }
+
+        // 工具函数：显示进度条
+        function showProgress() {
+            elements.progressContainer.style.display = 'block';
+            elements.realTimeStats.style.display = 'block';
+        }
+
+        // 工具函数：隐藏进度条
+        function hideProgress() {
+            setTimeout(() => {
+                elements.progressContainer.style.display = 'none';
+                elements.realTimeStats.style.display = 'none';
+                updateProgress(0, '准备开始处理...');
+            }, 1000);
+        }
+
+        // 工具函数：更新工作流步骤
+        function updateWorkflowStep(step) {
+            // 重置所有步骤
+            [elements.step1Wf, elements.step2Wf, elements.step3Wf, elements.step4Wf, elements.step5Wf].forEach(el => {
+                el.classList.remove('active', 'completed');
+            });
+            
+            // 根据步骤更新
+            switch(step) {
+                case 'step1':
+                    elements.step1Wf.classList.add('active');
+                    break;
+                case 'step2':
+                    elements.step1Wf.classList.add('completed');
+                    elements.step2Wf.classList.add('active');
+                    break;
+                case 'step3':
+                    elements.step1Wf.classList.add('completed');
+                    elements.step2Wf.classList.add('completed');
+                    elements.step3Wf.classList.add('active');
+                    break;
+                case 'step4':
+                    elements.step1Wf.classList.add('completed');
+                    elements.step2Wf.classList.add('completed');
+                    elements.step3Wf.classList.add('completed');
+                    elements.step4Wf.classList.add('active');
+                    break;
+                case 'step5':
+                    [elements.step1Wf, elements.step2Wf, elements.step3Wf, elements.step4Wf, elements.step5Wf]
+                        .forEach(el => el.classList.add('completed'));
+                    elements.step5Wf.classList.add('active');
+                    break;
+            }
+        }
+
+        // 工具函数：更新处理步骤状态
+        function updateProcessingStep(step, status, detail = '') {
+            const stepElement = elements[`step${step.charAt(0).toUpperCase() + step.slice(1)}`];
+            const detailElement = elements[`step${step.charAt(0).toUpperCase() + step.slice(1)}Detail`];
+            
+            if (stepElement) {
+                stepElement.className = `processing-step ${status}`;
+                const checkElement = stepElement.querySelector('.step-check');
+                
+                if (status === 'active') {
+                    checkElement.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                } else if (status === 'completed') {
+                    checkElement.innerHTML = '<i class="bi bi-check"></i>';
+                } else {
+                    checkElement.textContent = stepElement.querySelector('.step-check').textContent;
+                }
+            }
+            
+            if (detailElement && detail) {
+                detailElement.textContent = detail;
+            }
+        }
+
+        // 工具函数：检查是否准备好生成
+        function checkReadyToGenerate() {
+            const textReady = elements.ttsText.value.trim().length > 0;
+            const voiceReady = targetAudioBlob !== null;
+            
+            // 更新文件状态
+            if (textReady) {
+                elements.statusText.className = 'file-status ready';
+                elements.statusText.querySelector('.file-status-icon').innerHTML = '<i class="bi bi-check-circle"></i>';
+                elements.statusText.querySelector('p').textContent = '文本已准备';
+            } else {
+                elements.statusText.className = 'file-status pending';
+                elements.statusText.querySelector('.file-status-icon').innerHTML = '<i class="bi bi-hourglass"></i>';
+                elements.statusText.querySelector('p').textContent = '等待输入';
+            }
+            
+            if (voiceReady) {
+                elements.statusVoice.className = 'file-status ready';
+                elements.statusVoice.querySelector('.file-status-icon').innerHTML = '<i class="bi bi-check-circle"></i>';
+                elements.statusVoice.querySelector('p').textContent = '音色已准备';
+            } else {
+                elements.statusVoice.className = 'file-status pending';
+                elements.statusVoice.querySelector('.file-status-icon').innerHTML = '<i class="bi bi-hourglass"></i>';
+                elements.statusVoice.querySelector('p').textContent = '等待上传';
+            }
+            
+            // 启用/禁用生成按钮
+            elements.generateAllBtn.disabled = !(textReady && voiceReady);
+            
+            // 更新工作流步骤
+            if (textReady && voiceReady) {
+                updateWorkflowStep('step4');
+            } else if (voiceReady) {
+                updateWorkflowStep('step3');
+            } else if (textReady) {
+                updateWorkflowStep('step2');
+            }
+        }
+
+        // 工具函数：初始化AudioContext
+        function getAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+
+        // 工具函数：切分音频为片段
+        async function splitAudioIntoSegments(audioBlob, segmentDuration = 10) {
+            const ctx = getAudioContext();
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+            
+            const sampleRate = audioBuffer.sampleRate;
+            const samplesPerSegment = segmentDuration * sampleRate;
+            const totalSamples = audioBuffer.length;
+            const numSegments = Math.ceil(totalSamples / samplesPerSegment);
+            
+            console.log(`音频总时长: ${(totalSamples / sampleRate).toFixed(2)}秒`);
+            console.log(`将切分为 ${numSegments} 个片段，每个 ${segmentDuration} 秒`);
+            
+            const segments = [];
+            for (let i = 0; i < numSegments; i++) {
+                const startSample = i * samplesPerSegment;
+                const endSample = Math.min((i + 1) * samplesPerSegment, totalSamples);
+                const segmentBuffer = ctx.createBuffer(
+                    audioBuffer.numberOfChannels,
+                    endSample - startSample,
+                    sampleRate
+                );
+
+                for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+                    const channelData = audioBuffer.getChannelData(channel);
+                    const segmentData = segmentBuffer.getChannelData(channel);
+                    for (let j = 0; j < segmentData.length; j++) {
+                        segmentData[j] = channelData[startSample + j];
+                    }
+                }
+
+                // 将AudioBuffer转换为WAV Blob
+                const wavBlob = await audioBufferToWav(segmentBuffer);
+                const base64 = await blobToBase64(wavBlob);
+                segments.push({
+                    index: i,
+                    base64: base64,
+                    duration: (endSample - startSample) / sampleRate,
+                    startTime: startSample / sampleRate,
+                    endTime: endSample / sampleRate
+                });
+            }
+
+            return {
+                segments: segments,
+                totalDuration: totalSamples / sampleRate,
+                sampleRate: sampleRate,
+                numSegments: numSegments
+            };
+        }
+
+        // 工具函数：AudioBuffer转WAV
+        async function audioBufferToWav(audioBuffer) {
+            const numberOfChannels = audioBuffer.numberOfChannels;
+            const sampleRate = audioBuffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numberOfChannels * bytesPerSample;
+
+            const dataLength = audioBuffer.length * blockAlign;
+            const bufferLength = 44 + dataLength;
+
+            const arrayBuffer = new ArrayBuffer(bufferLength);
+            const view = new DataView(arrayBuffer);
+
+            // WAV文件头
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + dataLength, true);
+            writeString(view, 8, 'WAVE');
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numberOfChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(view, 36, 'data');
+            view.setUint32(40, dataLength, true);
+
+            // 写入音频数据
+            const channels = [];
+            for (let i = 0; i < numberOfChannels; i++) {
+                channels.push(audioBuffer.getChannelData(i));
+            }
+
+            let offset = 44;
+            for (let i = 0; i < audioBuffer.length; i++) {
+                for (let channel = 0; channel < numberOfChannels; channel++) {
+                    let sample = Math.max(-1, Math.min(1, channels[channel][i]));
+                    sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                    view.setInt16(offset, sample, true);
+                    offset += 2;
+                }
+            }
+
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+
+        // 工具函数：合并音频片段
+        async function mergeAudioSegments(base64Segments) {
+            const ctx = getAudioContext();
+            const segments = [];
+
+            // 解码所有片段
+            for (let base64 of base64Segments) {
+                // 处理不同的base64格式
+                let audioData;
+                if (base64.includes(',')) {
+                    audioData = atob(base64.split(',')[1]);
+                } else {
+                    audioData = atob(base64);
+                }
+
+                const arrayBuffer = new ArrayBuffer(audioData.length);
+                const view = new Uint8Array(arrayBuffer);
+                for (let i = 0; i < audioData.length; i++) {
+                    view[i] = audioData.charCodeAt(i);
+                }
+                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+                segments.push(audioBuffer);
+            }
+
+            // 创建合并后的buffer
+            const totalLength = segments.reduce((sum, seg) => sum + seg.length, 0);
+            const mergedBuffer = ctx.createBuffer(
+                segments[0].numberOfChannels,
+                totalLength,
+                segments[0].sampleRate
+            );
+
+            // 合并所有片段
+            let offset = 0;
+            for (const segment of segments) {
+                for (let channel = 0; channel < segment.numberOfChannels; channel++) {
+                    const mergedData = mergedBuffer.getChannelData(channel);
+                    const segmentData = segment.getChannelData(channel);
+                    for (let i = 0; i < segmentData.length; i++) {
+                        mergedData[offset + i] = segmentData[i];
+                    }
+                }
+                offset += segment.length;
+            }
+
+            return audioBufferToWav(mergedBuffer);
+        }
+
+        // 工具函数：显示流式处理信息
+        function showStreamingInfo() {
+            elements.streamingInfo.style.display = 'block';
+            streamingStats.startTime = Date.now();
+        }
+
+        // 工具函数：隐藏流式处理信息
+        function hideStreamingInfo() {
+            setTimeout(() => {
+                elements.streamingInfo.style.display = 'none';
+            }, 2000);
+        }
+
+        // 工具函数：初始化片段列表
+        function initSegmentList(numSegments) {
+            elements.segmentList.innerHTML = '';
+            streamingStats.totalSegments = numSegments;
+            streamingStats.processedSegments = 0;
+            streamingStats.successfulSegments = 0;
+            streamingStats.failedSegments = 0;
+            streamingStats.segments = new Array(numSegments).fill(null);
+            
+            elements.totalSegments.textContent = numSegments;
+            elements.processedSegments.textContent = '0';
+            elements.processingSpeed.textContent = '0/s';
+            elements.successRate.textContent = '0%';
+            
+            for (let i = 0; i < numSegments; i++) {
+                const segmentItem = document.createElement('div');
+                segmentItem.className = 'segment-item pending';
+                segmentItem.id = `segment-${i}`;
+                segmentItem.innerHTML = `
+                    <div class="segment-header">
+                        <div class="segment-title">片段 ${i + 1}</div>
+                        <span class="segment-badge bg-secondary">等待中</span>
+                    </div>
+                    <div class="segment-details">准备处理...</div>
+                `;
+                elements.segmentList.appendChild(segmentItem);
+            }
+            
+            showStreamingInfo();
+        }
+
+        // 工具函数：更新片段状态
+        function updateSegmentStatus(index, status, message = '') {
+            const segmentItem = document.getElementById(`segment-${index}`);
+            if (!segmentItem) return;
+            
+            segmentItem.className = `segment-item ${status}`;
+            
+            let badgeText = '等待中';
+            let badgeClass = 'bg-secondary';
+            
+            switch(status) {
+                case 'processing':
+                    badgeText = '处理中';
+                    badgeClass = 'bg-warning';
+                    break;
+                case 'processed':
+                    badgeText = '已完成';
+                    badgeClass = 'bg-success';
+                    streamingStats.processedSegments++;
+                    streamingStats.successfulSegments++;
+                    break;
+                case 'error':
+                    badgeText = '失败';
+                    badgeClass = 'bg-danger';
+                    streamingStats.processedSegments++;
+                    streamingStats.failedSegments++;
+                    break;
+            }
+            
+            segmentItem.innerHTML = `
+                <div class="segment-header">
+                    <div class="segment-title">片段 ${index + 1}</div>
+                    <span class="segment-badge ${badgeClass}">${badgeText}</span>
+                </div>
+                <div class="segment-details">${message}</div>
+            `;
+            
+            // 更新流式统计
+            updateStreamingStats();
+        }
+
+        // 工具函数：更新流式统计
+        function updateStreamingStats() {
+            elements.processedSegments.textContent = streamingStats.processedSegments;
+            
+            // 计算处理速度
+            if (streamingStats.startTime && streamingStats.processedSegments > 0) {
+                const elapsedTime = (Date.now() - streamingStats.startTime) / 1000;
+                const speed = streamingStats.processedSegments / elapsedTime;
+                elements.processingSpeed.textContent = `${speed.toFixed(1)}/s`;
+                
+                // 计算成功率
+                const successRate = streamingStats.successfulSegments / streamingStats.totalSegments * 100;
+                elements.successRate.textContent = `${successRate.toFixed(1)}%`;
+                
+                // 更新整体进度
+                const overallProgress = (streamingStats.processedSegments / streamingStats.totalSegments) * 100;
+                updateProgress(40 + (overallProgress * 0.5), `正在处理音频片段: ${streamingStats.processedSegments}/${streamingStats.totalSegments}`);
+                
+                // 预估剩余时间
+                if (speed > 0) {
+                    const remainingSegments = streamingStats.totalSegments - streamingStats.processedSegments;
+                    const remainingTime = remainingSegments / speed;
+                    if (remainingTime > 60) {
+                        elements.estimatedRemaining.textContent = `${(remainingTime / 60).toFixed(1)}分钟`;
+                    } else {
+                        elements.estimatedRemaining.textContent = `${remainingTime.toFixed(0)}秒`;
+                    }
+                }
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initEventListeners();
+            checkServices();
+        });
+
+        // 初始化事件监听器
+        function initEventListeners() {
+            // TTS语速滑块
+            elements.ttsSpeed.addEventListener('input', function() {
+                elements.ttsSpeedValue.textContent = this.value;
+            });
+
+            // Tau滑块
+            elements.tauSlider.addEventListener('input', function() {
+                elements.tauValue.textContent = this.value;
+            });
+
+            // 示例文本按钮
+            document.querySelectorAll('.example-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    elements.ttsText.value = this.getAttribute('data-text');
+                    checkReadyToGenerate();
+                    showStatus('已加载示例文本', 'info');
+                });
+            });
+
+            // 文本输入变化
+            elements.ttsText.addEventListener('input', checkReadyToGenerate);
+
+            // 高级选项切换
+            elements.toggleAdvanced.addEventListener('click', function() {
+                const isVisible = elements.advancedOptions.style.display !== 'none';
+                elements.advancedOptions.style.display = isVisible ? 'none' : 'block';
+                this.innerHTML = isVisible ? 
+                    '<i class="bi bi-gear"></i> 高级选项' : 
+                    '<i class="bi bi-gear-fill"></i> 隐藏高级选项';
+            });
+
+            // 目标音色上传
+            elements.targetDropZone.addEventListener('click', () => {
+                elements.targetAudioFile.click();
+            });
+
+            elements.targetDropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                elements.targetDropZone.classList.add('dragover');
+            });
+
+            elements.targetDropZone.addEventListener('dragleave', () => {
+                elements.targetDropZone.classList.remove('dragover');
+            });
+
+            elements.targetDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                elements.targetDropZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    handleTargetAudio(e.dataTransfer.files[0]);
+                }
+            });
+
+            elements.targetAudioFile.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleTargetAudio(e.target.files[0]);
+                }
+            });
+
+            // 一键生成按钮
+            elements.generateAllBtn.addEventListener('click', startCompleteWorkflow);
+            
+            // 下载最终结果按钮
+            elements.finalDownloadBtn.addEventListener('click', downloadFinalResult);
+            
+            // 实时统计更新
+            setInterval(updateRealTimeStats, 1000);
+        }
+
+        // 检查服务状态
+        async function checkServices() {
+            // 检查TTS服务
+            try {
+                const response = await fetch(`${TTS_SERVER}/api/health`);
+                if (response.ok) {
+                    elements.ttsServiceStatus.innerHTML = '<i class="bi bi-check-circle-fill"></i> TTS服务在线';
+                    elements.ttsServiceStatus.className = 'service-badge service-online';
+                }
+            } catch (error) {
+                elements.ttsServiceStatus.innerHTML = '<i class="bi bi-x-circle-fill"></i> TTS服务离线';
+                elements.ttsServiceStatus.className = 'service-badge service-offline';
+            }
+
+            // 检查音色克隆服务
+            try {
+                const response = await fetch(`${ISV_SERVER}/api/health`);
+                if (response.ok) {
+                    elements.isvServiceStatus.innerHTML = '<i class="bi bi-check-circle-fill"></i> 音色克隆服务在线';
+                    elements.isvServiceStatus.className = 'service-badge service-online';
+                }
+            } catch (error) {
+                elements.isvServiceStatus.innerHTML = '<i class="bi bi-x-circle-fill"></i> 音色克隆服务离线';
+                elements.isvServiceStatus.className = 'service-badge service-offline';
+            }
+        }
+
+        // 处理目标音频
+        async function handleTargetAudio(file) {
+            if (!file.type.startsWith('audio/')) {
+                showStatus('请上传音频文件（WAV、MP3、FLAC、OGG格式）', 'error');
+                return;
+            }
+
+            // 限制文件大小
+            if (file.size > 10 * 1024 * 1024) { // 10MB限制
+                showStatus('文件太大，请上传小于10MB的音频文件', 'error');
+                return;
+            }
+
+            targetAudioBlob = file;
+            
+            // 显示文件信息
+            elements.targetFileName.textContent = file.name;
+            elements.targetFileSize.textContent = formatFileSize(file.size);
+            elements.targetAudioInfo.style.display = 'block';
+            
+            // 创建音频URL并播放
+            const audioUrl = URL.createObjectURL(file);
+            elements.targetAudioPlayer.src = audioUrl;
+            
+            // 更新文件状态显示
+            elements.fileStatusTarget.className = 'file-status ready';
+            elements.fileStatusTarget.querySelector('.file-status-icon').innerHTML = '<i class="bi bi-check-circle"></i>';
+            elements.fileStatusTarget.querySelector('p').textContent = `已上传: ${file.name}`;
+            
+            // 检查是否可以进行克隆
+            checkReadyToGenerate();
+            
+            showStatus('目标音色已上传', 'success');
+        }
+
+        // 开始完整工作流
+        async function startCompleteWorkflow() {
+            const text = elements.ttsText.value.trim();
+            if (!text) {
+                showStatus('请输入要转换的文本', 'error');
+                return;
+            }
+
+            if (!targetAudioBlob) {
+                showStatus('请上传目标音色音频', 'error');
+                return;
+            }
+
+            // 重置状态
+            processingStartTime = Date.now();
+            ttsStartTime = 0;
+            cloneStartTime = 0;
+            totalProcessingTime = 0;
+            
+            // 重置处理步骤
+            updateProcessingStep('tts', '');
+            updateProcessingStep('clone', '');
+            updateProcessingStep('merge', '');
+            
+            showStatus('开始一键生成克隆语音...', 'loading');
+            showProgress();
+            updateProgress(10, '正在初始化...');
+            
+            elements.generateAllBtn.disabled = true;
+            elements.generateAllBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> 处理中...';
+            
+            // 隐藏之前的结果
+            elements.resultContainer.style.display = 'none';
+            // 隐藏流式处理信息（如果需要会重新显示）
+            hideStreamingInfo();
+
+            try {
+                // 步骤1: 生成TTS语音
+                updateProcessingStep('tts', 'active', '正在将文本转换为语音...');
+                updateProgress(20, '正在生成TTS语音...');
+                updateWorkflowStep('step4');
+                
+                const ttsStart = Date.now();
+                const ttsAudioBlob = await generateTTS(text);
+                ttsStartTime = Date.now() - ttsStart;
+                
+                updateProcessingStep('tts', 'completed', `TTS生成完成 (${(ttsStartTime/1000).toFixed(2)}秒)`);
+                updateProgress(40, 'TTS语音生成完成，开始音色克隆...');
+
+                // 步骤2: 音色克隆
+                updateProcessingStep('clone', 'active', '准备音色克隆...');
+                
+                const cloneStart = Date.now();
+                const clonedResult = await cloneVoice(ttsAudioBlob, targetAudioBlob);
+                cloneStartTime = Date.now() - cloneStart;
+                
+                updateProcessingStep('clone', 'completed', `音色克隆完成 (${(cloneStartTime/1000).toFixed(2)}秒)`);
+                updateProgress(90, '音色克隆完成，正在优化音频...');
+
+                // 步骤3: 合并与优化
+                updateProcessingStep('merge', 'active', '正在合并音频片段...');
+                
+                // 如果返回的是多个片段，需要合并
+                if (clonedResult.segments && clonedResult.segments.length > 1) {
+                    const mergedWavBlob = await mergeAudioSegments(clonedResult.segments);
+                    clonedAudioBase64 = (await blobToBase64(mergedWavBlob)).split(',')[1];
+                } else {
+                    clonedAudioBase64 = clonedResult.audio;
+                }
+                
+                updateProcessingStep('merge', 'completed', '音频合并完成');
+                updateProgress(100, '处理完成!');
+                updateWorkflowStep('step5');
+                
+                // 计算总耗时
+                totalProcessingTime = Date.now() - processingStartTime;
+                
+                // 显示最终结果
+                showFinalResult(clonedResult);
+                
+                showStatus(`一键生成完成! 总耗时: ${(totalProcessingTime/1000).toFixed(2)}秒`, 'success');
+
+            } catch (error) {
+                console.error('一键生成失败:', error);
+                showStatus(`处理失败: ${error.message}`, 'error');
+            } finally {
+                elements.generateAllBtn.disabled = false;
+                elements.generateAllBtn.innerHTML = '<i class="bi bi-magic"></i> 一键生成克隆语音';
+                hideProgress();
+                hideStreamingInfo();
+            }
+        }
+
+        // 生成TTS语音
+        async function generateTTS(text) {
+            try {
+                const response = await fetch(`${TTS_SERVER}/api/tts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        model: elements.ttsModel.value,
+                        speed: parseFloat(elements.ttsSpeed.value),
+                        volume: 1.0,
+                        noise_scale: 0.667,
+                        sentence_silence: 0.5
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`TTS生成失败: ${response.status} - ${errorText.substring(0, 100)}`);
+                }
+
+                // 获取音频数据
+                return await response.blob();
+
+            } catch (error) {
+                console.error('TTS生成失败:', error);
+                throw new Error(`TTS生成失败: ${error.message}`);
+            }
+        }
+
+        // 音色克隆
+        async function cloneVoice(ttsAudioBlob, targetAudioBlob) {
+            // 转换目标音色为base64
+            const targetBase64 = await fileToBase64(targetAudioBlob);
+            
+            // 检查是否需要流式处理
+            const shouldStream = elements.enableStreaming.checked;
+            
+            if (shouldStream) {
+                // 检查音频长度
+                const audioUrl = URL.createObjectURL(ttsAudioBlob);
+                const audioElement = new Audio(audioUrl);
+                
+                await new Promise(resolve => {
+                    audioElement.addEventListener('loadedmetadata', resolve);
+                    audioElement.load();
+                });
+                
+                const audioDuration = audioElement.duration;
+                const segmentDuration = parseInt(elements.segmentDuration.value);
+                
+                // 如果音频较长，使用流式处理
+                if (audioDuration > segmentDuration * 1.5) {
+                    return await streamingClone(targetBase64, ttsAudioBlob);
+                }
+            }
+            
+            // 单次处理
+            return await singleClone(targetBase64, ttsAudioBlob);
+        }
+
+        // 单次音色克隆
+        async function singleClone(targetBase64, ttsAudioBlob) {
+            const sourceBase64 = await blobToBase64(ttsAudioBlob);
+            
+            const response = await fetch(`${ISV_SERVER}/api/clone`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    target_audio: targetBase64,
+                    source_audio: sourceBase64,
+                    tau: parseFloat(elements.tauSlider.value)
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`音色克隆失败: ${response.status} - ${errorText.substring(0, 100)}`);
+            }
+
+            const result = await response.json();
+            
+            if (result.success) {
+                return {
+                    audio: result.result_audio,
+                    segments: [result.result_audio],
+                    stats: result.stats || {}
+                };
+            } else {
+                throw new Error(result.error || '音色克隆失败');
+            }
+        }
+
+        // 流式音色克隆
+        async function streamingClone(targetBase64, ttsAudioBlob) {
+            showStatus('开始流式处理音频...', 'info');
+            
+            // 获取音频信息
+            const audioUrl = URL.createObjectURL(ttsAudioBlob);
+            const audioElement = new Audio(audioUrl);
+            
+            await new Promise(resolve => {
+                audioElement.addEventListener('loadedmetadata', resolve);
+                audioElement.load();
+            });
+            
+            const audioDuration = audioElement.duration;
+            const segmentDuration = parseInt(elements.segmentDuration.value);
+            
+            showStatus(`开始流式处理: 将${audioDuration.toFixed(2)}秒音频切分为片段`, 'info');
+            
+            // 切分音频
+            updateProcessingStep('clone', 'active', `正在切分音频 (${audioDuration.toFixed(2)}秒)`);
+            const splitResult = await splitAudioIntoSegments(ttsAudioBlob, segmentDuration);
+            const numSegments = splitResult.numSegments;
+            
+            // 初始化片段列表
+            initSegmentList(numSegments);
+            
+            updateProcessingStep('clone', 'active', `开始处理 ${numSegments} 个片段...`);
+            
+            // 并发处理片段
+            const concurrentLimit = parseInt(elements.concurrentCount.value);
+            const segments = splitResult.segments;
+            const segmentResults = new Array(numSegments);
+            
+            // 分批处理
+            for (let i = 0; i < segments.length; i += concurrentLimit) {
+                const batch = segments.slice(i, i + concurrentLimit);
+                
+                // 更新当前处理中的片段状态
+                batch.forEach(segment => {
+                    updateSegmentStatus(segment.index, 'processing', `准备处理 (${segment.duration.toFixed(1)}秒)`);
+                });
+                
+                // 创建批次处理Promise
+                const batchPromises = batch.map(async (segment) => {
+                    try {
+                        updateSegmentStatus(segment.index, 'processing', '发送请求到服务器...');
+                        
+                        const response = await fetch(`${ISV_SERVER}/api/clone`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                target_audio: targetBase64,
+                                source_audio: segment.base64,
+                                tau: parseFloat(elements.tauSlider.value)
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`片段 ${segment.index + 1} 请求失败`);
+                        }
+
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            segmentResults[segment.index] = result.result_audio;
+                            updateSegmentStatus(segment.index, 'processed', `处理完成 (${segment.duration.toFixed(1)}秒)`);
+                            
+                            return result;
+                        } else {
+                            throw new Error(result.error || '片段处理失败');
+                        }
+                    } catch (error) {
+                        console.error(`片段 ${segment.index + 1} 处理失败:`, error);
+                        updateSegmentStatus(segment.index, 'error', error.message);
+                        throw error;
+                    }
+                });
+                
+                // 等待当前批次完成
+                try {
+                    await Promise.all(batchPromises);
+                } catch (error) {
+                    // 单个片段失败不影响其他片段
+                    showStatus(`部分片段处理失败，继续处理其他片段`, 'warning');
+                }
+            }
+            
+            updateProcessingStep('clone', 'active', '正在合并音频片段...');
+            
+            // 过滤出成功的片段
+            const successfulSegments = segmentResults.filter(result => result !== undefined);
+            
+            if (successfulSegments.length === 0) {
+                throw new Error('所有片段处理都失败了');
+            }
+            
+            return {
+                audio: successfulSegments[0], // 简化：使用第一个片段作为代表
+                segments: successfulSegments,
+                stats: {
+                    total_segments: numSegments,
+                    successful_segments: successfulSegments.length,
+                    failed_segments: numSegments - successfulSegments.length
+                }
+            };
+        }
+
+        // 更新实时统计
+        function updateRealTimeStats() {
+            if (!processingStartTime) return;
+            
+            const elapsed = (Date.now() - processingStartTime) / 1000;
+            elements.elapsedTime.textContent = `${elapsed.toFixed(1)}秒`;
+        }
+
+        // 显示最终结果
+        function showFinalResult(result) {
+            // 创建音频URL
+            const audioUrl = `data:audio/wav;base64,${clonedAudioBase64}`;
+            elements.finalResultAudio.src = audioUrl;
+            
+            // 显示结果容器
+            elements.resultContainer.style.display = 'block';
+            
+            // 更新统计信息
+            elements.ttsTime.textContent = `${(ttsStartTime/1000).toFixed(2)}秒`;
+            elements.cloneTime.textContent = `${(cloneStartTime/1000).toFixed(2)}秒`;
+            elements.totalTime.textContent = `${(totalProcessingTime/1000).toFixed(2)}秒`;
+            
+            // 如果有流式处理统计信息
+            if (result.stats && result.stats.total_segments) {
+                elements.segmentCount.textContent = `${result.stats.successful_segments}/${result.stats.total_segments}个片段`;
+            } else {
+                elements.segmentCount.textContent = '单次处理';
+            }
+            
+            // 滚动到结果位置
+            elements.resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 下载最终结果
+        function downloadFinalResult() {
+            if (!clonedAudioBase64) {
+                showStatus('没有可下载的音频', 'error');
+                return;
+            }
+            
+            try {
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.href = `data:audio/wav;base64,${clonedAudioBase64}`;
+                link.download = `克隆语音_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.wav`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showStatus('音频已下载', 'success');
+            } catch (error) {
+                console.error('下载失败:', error);
+                showStatus(`下载失败: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
